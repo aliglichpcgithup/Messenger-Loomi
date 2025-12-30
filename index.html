@@ -3,220 +3,266 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Messenger with Video Calls</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
+    <title>Loomi Messenger 2025</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
-        body { font-family: sans-serif; margin: 0; display: flex; height: 100vh; background: #f0f2f5; }
-        #contacts { width: 30%; border-right: 1px solid #ccc; overflow-y: auto; background: white; }
-        #chat { width: 70%; display: flex; flex-direction: column; }
-        .contact { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; transition: 0.3s; }
-        .contact:hover { background: #e7f3ff; }
-        #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { padding: 10px 15px; border-radius: 18px; max-width: 70%; word-wrap: break-word; }
-        .my-msg { background: #0084ff; color: white; align-self: flex-end; }
-        .p-msg { background: #e4e6eb; color: black; align-self: flex-start; }
-        #input-area { padding: 15px; display: flex; background: white; border-top: 1px solid #ccc; }
-        input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 20px; outline: none; }
-        
-        /* Экран звонка */
-        #call-screen { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.9); display: none; flex-direction: column; 
-            align-items: center; justify-content: center; z-index: 1000;
-        }
-        video { width: 80%; max-width: 600px; border-radius: 10px; background: #222; }
-        #localVid { width: 150px; position: absolute; bottom: 20px; right: 20px; border: 2px solid white; }
-        .call-btns { margin-top: 20px; display: flex; gap: 20px; }
-        button { padding: 10px 20px; border-radius: 5px; cursor: pointer; border: none; font-weight: bold; }
-        .btn-hangup { background: #ff4444; color: white; }
-        .btn-accept { background: #00c851; color: white; display: none; }
+        :root { --green: #25D366; --bg: #0b141a; --dark: #111b21; --light: #e9edef; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: var(--bg); color: var(--light); height: 100vh; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+
+        #auth-screen { background: var(--dark); padding: 40px; border-radius: 20px; text-align: center; width: 320px; border: 1px solid #333; }
+        .inp { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: none; background: #2a3942; color: white; outline: none; }
+        .btn-main { width: 100%; padding: 12px; background: var(--green); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: #000; }
+
+        .app { width: 100vw; height: 100vh; display: none; }
+        .sidebar { width: 300px; background: var(--dark); border-right: 1px solid #333; display: flex; flex-direction: column; }
+        .chat-area { flex: 1; display: flex; flex-direction: column; background: #0b141a; position: relative; }
+
+        #messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-blend-mode: overlay; background-color: #0b141a; }
+        .msg { padding: 8px 12px; border-radius: 8px; max-width: 75%; word-wrap: break-word; }
+        .msg.mine { align-self: flex-end; background: #005c4b; }
+        .msg.others { align-self: flex-start; background: #202c33; }
+
+        /* Звонок */
+        #call-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; }
+        #remoteVid { width: 100%; height: 100%; object-fit: cover; position: absolute; }
+        #localVid { width: 120px; height: 160px; top: 20px; right: 20px; border: 2px solid white; border-radius: 12px; position: absolute; z-index: 10; object-fit: cover; }
+        .call-controls { position: absolute; bottom: 40px; display: flex; gap: 20px; z-index: 100; }
+        .c-btn { width: 65px; height: 65px; border-radius: 50%; border: none; cursor: pointer; font-size: 24px; color: white; display: flex; align-items: center; justify-content: center; }
+        .c-red { background: #ff3b30; }
+        .c-green { background: #25D366; }
+
+        .header { padding: 15px; background: #202c33; display: flex; justify-content: space-between; align-items: center; }
+        .footer { padding: 10px; background: #202c33; display: flex; gap: 10px; }
+        #status { font-size: 11px; color: var(--green); text-align: center; padding: 5px; }
     </style>
 </head>
 <body>
 
-<div id="contacts"></div>
-<div id="chat">
-    <div id="messages"></div>
-    <div id="input-area">
-        <input type="text" id="msgInput" placeholder="Сообщение...">
-        <button onclick="sendMessage()">Send</button>
-        <button onclick="startCallProcess(true)" style="margin-left:5px;">Video</button>
-        <button onclick="startCallProcess(false)" style="margin-left:5px;">Audio</button>
-    </div>
+<audio id="ringtone" loop src="https://www.soundjay.com/phone/phone-calling-1.mp3"></audio>
+
+<div id="auth-screen">
+    <h1 style="color: var(--green); margin-bottom: 20px;">Loomi</h1>
+    <input type="text" id="a-name" class="inp" placeholder="Ваше имя">
+    <input type="password" id="a-pass" class="inp" placeholder="Пароль">
+    <button class="btn-main" onclick="login()">ВОЙТИ</button>
 </div>
 
-<div id="call-screen">
-    <h2 id="call-status" style="color:white;">Звонок...</h2>
-    <video id="remoteVid" autoplay playsinline></video>
-    <video id="localVid" autoplay playsinline muted></video>
-    <div class="call-btns">
-        <button class="btn-accept" id="btn-accept" onclick="acceptCall()">Принять</button>
-        <button class="btn-hangup" onclick="endCall()">Завершить</button>
+<div class="app" id="app">
+    <div id="call-screen">
+        <video id="remoteVid" autoplay playsinline></video>
+        <video id="localVid" autoplay muted playsinline></video>
+        <div class="call-controls">
+            <button id="btn-accept" class="c-btn c-green" onclick="acceptCall()">📞</button>
+            <button class="c-btn c-red" onclick="endCall()">🛑</button>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <div id="status">Сеть...</div>
+        <div style="padding:20px; border-bottom: 1px solid #333;">
+            <h3 id="my-name-tag">...</h3>
+            <button onclick="addFriend()" style="color:var(--green); background:none; border:none; cursor:pointer; font-size:12px; margin-top:5px;">+ Добавить контакт</button>
+        </div>
+        <div id="contactsBox" style="overflow-y:auto; flex:1;"></div>
+    </div>
+
+    <div class="chat-area">
+        <div class="header">
+            <h4 id="chat-title">Выберите чат</h4>
+            <div id="chat-tools" style="display:none; gap:25px;">
+                <span onclick="preStartCall(true)" style="cursor:pointer; font-size:24px;">📹</span>
+                <span onclick="preStartCall(false)" style="cursor:pointer; font-size:24px;">📞</span>
+            </div>
+        </div>
+        <div id="messages"></div>
+        <form class="footer" onsubmit="sendMsg(event)">
+            <input type="text" id="m-inp" class="inp" style="margin:0;" placeholder="Сообщение" disabled>
+            <button type="button" id="voice-btn" class="c-btn" style="width:45px; height:45px; font-size:20px; background:#2a3942;" onclick="toggleVoice()">🎤</button>
+            <button type="submit" style="background:none; border:none; font-size:28px; cursor:pointer;">🚀</button>
+        </form>
     </div>
 </div>
-
-<audio id="ringtone" src="https://www.soundjay.com/phone/phone-calling-1.mp3" loop></audio>
 
 <script>
-    // 1. КОНФИГУРАЦИЯ FIREBASE (Вставь свои данные здесь!)
     const firebaseConfig = {
-        apiKey: "ТВОЙ_КЛЮЧ",
-        authDomain: "ТВОЙ_ПРОЕКТ.firebaseapp.com",
-        databaseURL: "https://ТВОЙ_ПРОЕКТ.firebaseio.com",
-        projectId: "ТВОЙ_ПРОЕКТ",
-        storageBucket: "ТВОЙ_ПРОЕКТ.appspot.com",
-        messagingSenderId: "ID",
-        appId: "APP_ID"
+        apiKey: "AIzaSyA9DEtNqidbnYgWzI6FbYguI_V31Jx70PM",
+        databaseURL: "https://loomi-48757-default-rtdb.firebaseio.com",
+        projectId: "loomi-48757",
+        appId: "1:332015550824:web:5b7e5c9aafa1e7703e16dd"
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // 2. ИНИЦИАЛИЗАЦИЯ ПОЛЬЗОВАТЕЛЯ
-    let myName = localStorage.getItem('chat_name') || prompt("Ваше имя:");
-    if(!myName) location.reload();
-    localStorage.setItem('chat_name', myName);
+    let myName, partner, peer, localStream, currentCall, inData, mediaRec, audioCh = [];
+    let currentChatRef = null;
 
-    const peer = new Peer(myName);
-    let partner = "";
-    let localStream;
-    let currentCall;
-    let inData = null;
+    async function login() {
+        myName = document.getElementById('a-name').value.trim().toLowerCase();
+        let pass = document.getElementById('a-pass').value.trim();
+        if(!myName || !pass) return alert("Введите данные!");
 
-    // 3. СПИСОК КОНТАКТОВ
-    const contacts = ["User1", "User2", "User3"]; // Замени на реальных пользователей
-    const contactsDiv = document.getElementById('contacts');
-    contacts.forEach(c => {
-        if(c !== myName) {
-            const div = document.createElement('div');
-            div.className = 'contact';
-            div.innerText = c;
-            div.onclick = () => { partner = c; loadMessages(); };
-            contactsDiv.appendChild(div);
-        }
-    });
+        const snap = await db.ref(`users/${myName}`).once('value');
+        if(snap.exists() && snap.val().pass !== pass) return alert("Неверный пароль!");
+        if(!snap.exists()) await db.ref(`users/${myName}`).set({pass: pass});
 
-    // 4. ЧАТ
-    function sendMessage() {
-        const text = document.getElementById('msgInput').value;
-        if(!text || !partner) return;
-        const id = myName < partner ? `${myName}_${partner}` : `${partner}_${myName}`;
-        db.ref(`chats/${id}`).push({ sender: myName, text: text });
-        document.getElementById('msgInput').value = "";
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('app').style.display = 'flex';
+        document.getElementById('my-name-tag').innerText = "Я: " + myName;
+
+        initPeer();
+        loadContacts();
+        listenSignals();
     }
 
-    function loadMessages() {
-        const id = myName < partner ? `${myName}_${partner}` : `${partner}_${myName}`;
-        db.ref(`chats/${id}`).on('value', snap => {
-            const area = document.getElementById('messages');
-            area.innerHTML = "";
-            snap.forEach(m => {
-                const d = m.val();
-                const div = document.createElement('div');
-                div.className = `msg ${d.sender === myName ? 'my-msg' : 'p-msg'}`;
-                div.innerText = d.text;
-                area.appendChild(div);
-            });
-            area.scrollTop = area.scrollHeight;
+    function initPeer() {
+        peer = new Peer(myName, {
+            config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }, { 'urls': 'stun:stun1.l.google.com:19302' }]}
+        });
+        peer.on('open', () => document.getElementById('status').innerText = "● Онлайн");
+        peer.on('call', call => { currentCall = call; });
+    }
+
+    function listenSignals() {
+        db.ref(`calls/${myName}`).on('value', snap => {
+            const d = snap.val();
+            if(d && d.active) {
+                inData = d;
+                document.getElementById('ringtone').play().catch(()=>{});
+                document.getElementById('call-screen').style.display = 'flex';
+                document.getElementById('btn-accept').style.display = 'flex';
+            } else if (!d) { stopAllMedia(); }
         });
     }
 
-    // 5. ЛОГИКА ЗВОНКОВ (ИСПРАВЛЕННАЯ)
-    
-    // Входящий звонок (через Firebase)
-    db.ref(`calls/${myName}`).on('value', snap => {
-        inData = snap.val();
-        if(inData && inData.active) {
-            document.getElementById('call-screen').style.display = 'flex';
-            document.getElementById('btn-accept').style.display = 'block';
-            document.getElementById('call-status').innerText = `Входящий ${inData.video ? 'видео' : 'аудио'} звонок от ${inData.from}`;
-            document.getElementById('ringtone').play().catch(e => console.log("Нужен клик для звука"));
-            partner = inData.from;
-        }
-    });
-
-    // Начать звонок
-    async function startCallProcess(isVideo) {
-        if(!partner) return alert("Выберите контакт!");
+    async function preStartCall(isVideo) {
         try {
-            // Запрашиваем доступ (Важно: и видео, и аудио)
+            // Захват звука с подавлением эха
             localStream = await navigator.mediaDevices.getUserMedia({
                 video: isVideo, 
-                audio: true 
+                audio: { echoCancellation: true, noiseSuppression: true }
             });
             document.getElementById('localVid').srcObject = localStream;
             
-            // Сигнализируем в Firebase
             db.ref(`calls/${partner}`).set({from: myName, video: isVideo, active: true});
-            
             document.getElementById('call-screen').style.display = 'flex';
             document.getElementById('btn-accept').style.display = 'none';
-            document.getElementById('call-status').innerText = "Вызов...";
-
-            // Ждем инициализации Peer и звоним
-            const call = peer.call(partner, localStream);
-            handleCall(call);
-        } catch(e) {
-            alert("Ошибка доступа к камере/микрофону: " + e.message);
-        }
+            
+            setTimeout(() => {
+                const call = peer.call(partner, localStream);
+                currentCall = call;
+                call.on('stream', rs => {
+                    const rv = document.getElementById('remoteVid');
+                    rv.srcObject = rs;
+                    rv.muted = false; // Включаем звук
+                    rv.play();
+                });
+            }, 1000);
+        } catch(e) { alert("Нет доступа к микрофону!"); }
     }
 
-    // Принять звонок
     async function acceptCall() {
         document.getElementById('ringtone').pause();
         try {
-            localStream = await navigator.mediaDevices.getUserMedia({
-                video: inData.video, 
-                audio: true 
-            });
+            localStream = await navigator.mediaDevices.getUserMedia({video: inData.video, audio: true});
             document.getElementById('localVid').srcObject = localStream;
             
-            // Отвечаем на звонок в PeerJS
-            if(currentCall) {
-                currentCall.answer(localStream);
-            }
+            currentCall.answer(localStream);
+            currentCall.on('stream', rs => {
+                const rv = document.getElementById('remoteVid');
+                rv.srcObject = rs;
+                rv.muted = false; // Включаем звук
+                rv.play();
+            });
             
             document.getElementById('btn-accept').style.display = 'none';
-            document.getElementById('call-status').innerText = "В разговоре";
-            // Убираем флаг звонка в БД
             db.ref(`calls/${myName}`).update({active: false});
-        } catch(e) {
-            alert("Ошибка при принятии звонка: " + e.message);
-        }
-    }
-
-    // Обработка входящего потока (PeerJS)
-    peer.on('call', call => {
-        currentCall = call;
-        // Если мы уже в экране звонка (нажали принять), поток обработается тут:
-        call.on('stream', rs => {
-            const remoteVid = document.getElementById('remoteVid');
-            remoteVid.srcObject = rs;
-            remoteVid.muted = false; // Принудительно включаем звук
-            remoteVid.play();
-        });
-    });
-
-    function handleCall(call) {
-        currentCall = call;
-        call.on('stream', rs => {
-            const remoteVid = document.getElementById('remoteVid');
-            remoteVid.srcObject = rs;
-            remoteVid.muted = false;
-            remoteVid.play();
-            document.getElementById('call-status').innerText = "В разговоре";
-        });
+        } catch(e) { stopAllMedia(); }
     }
 
     function endCall() {
-        if(localStream) localStream.getTracks().forEach(t => t.stop());
-        if(currentCall) currentCall.close();
-        db.ref(`calls/${partner}`).set(null);
-        db.ref(`calls/${myName}`).set(null);
-        location.reload(); // Простой способ сбросить всё
+        if(partner) db.ref(`calls/${partner}`).remove();
+        db.ref(`calls/${myName}`).remove();
+        stopAllMedia();
     }
 
+    function stopAllMedia() {
+        document.getElementById('ringtone').pause();
+        if(localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+        if(currentCall) currentCall.close();
+        document.getElementById('call-screen').style.display = 'none';
+        document.getElementById('remoteVid').srcObject = null;
+    }
+
+    // --- ЧАТ ---
+    function addFriend() {
+        let f = prompt("Имя друга:");
+        if(f) db.ref(`users/${myName}/friends/${f.toLowerCase()}`).set(true);
+    }
+
+    function loadContacts() {
+        db.ref(`users/${myName}/friends`).on('value', snap => {
+            const b = document.getElementById('contactsBox'); b.innerHTML = '';
+            Object.keys(snap.val() || {}).forEach(name => {
+                const d = document.createElement('div');
+                d.style = "padding:15px; cursor:pointer; border-bottom:1px solid #333";
+                d.innerText = "👤 " + name;
+                d.onclick = () => selectChat(name);
+                b.appendChild(d);
+            });
+        });
+    }
+
+    function selectChat(name) {
+        partner = name;
+        document.getElementById('chat-title').innerText = name;
+        document.getElementById('chat-tools').style.display = 'flex';
+        document.getElementById('m-inp').disabled = false;
+        if(currentChatRef) currentChatRef.off();
+        currentChatRef = db.ref(`chats/${[myName, partner].sort().join("_")}`);
+        currentChatRef.on('value', snap => {
+            const box = document.getElementById('messages');
+            box.innerHTML = '';
+            snap.forEach(c => {
+                const m = c.val();
+                const div = document.createElement('div');
+                div.className = `msg ${m.from === myName ? 'mine' : 'others'}`;
+                if(m.text) div.innerText = m.text;
+                else if(m.audio) div.innerHTML = `<audio controls src="${m.audio}" style="width:200px;"></audio>`;
+                box.appendChild(div);
+            });
+            box.scrollTop = box.scrollHeight;
+        });
+    }
+
+    function sendMsg(e) {
+        e.preventDefault(); const i = document.getElementById('m-inp');
+        if(!i.value) return;
+        db.ref(`chats/${[myName, partner].sort().join("_")}`).push({from:myName, text:i.value});
+        i.value = '';
+    }
+
+    async function toggleVoice() {
+        const btn = document.getElementById('voice-btn');
+        if (!mediaRec) {
+            try {
+                const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRec = new MediaRecorder(s); audioCh = [];
+                mediaRec.ondataavailable = e => audioCh.push(e.data);
+                mediaRec.onstop = () => {
+                    const r = new FileReader();
+                    r.readAsDataURL(new Blob(audioCh, { type: 'audio/webm' }));
+                    r.onloadend = () => { db.ref(`chats/${[myName, partner].sort().join("_")}`).push({from: myName, audio: r.result}); };
+                    s.getTracks().forEach(t => t.stop()); mediaRec = null;
+                };
+                mediaRec.start(); btn.innerText = '🛑'; btn.style.color = 'red';
+            } catch (e) { alert("Микрофон недоступен"); }
+        } else {
+            mediaRec.stop(); btn.innerText = '🎤'; btn.style.color = 'white';
+        }
+    }
 </script>
 </body>
 </html>

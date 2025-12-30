@@ -20,7 +20,7 @@
         .sidebar { width: 300px; background: var(--dark); border-right: 1px solid #333; display: flex; flex-direction: column; }
         .chat-area { flex: 1; display: flex; flex-direction: column; background: #0b141a; position: relative; }
 
-        .contact { padding: 15px; border-bottom: 1px solid #222; cursor: pointer; transition: 0.3s; }
+        .contact { padding: 15px; border-bottom: 1px solid #222; cursor: pointer; }
         .contact:hover { background: #2a3942; }
 
         #messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-blend-mode: overlay; background-color: #0b141a; }
@@ -29,9 +29,7 @@
         .msg.others { align-self: flex-start; background: #202c33; color: white; }
 
         #call-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; }
-        /* Удаленный поток (звук от собеседника) */
         #remoteVid { width: 100%; height: 100%; object-fit: cover; position: absolute; }
-        /* Свой поток (всегда без звука, чтобы не слышать себя) */
         #localVid { width: 120px; height: 160px; top: 20px; right: 20px; border: 2px solid white; border-radius: 12px; position: absolute; z-index: 10; object-fit: cover; }
         .call-controls { position: absolute; bottom: 40px; display: flex; gap: 20px; z-index: 100; }
         .c-btn { width: 65px; height: 65px; border-radius: 50%; border: none; cursor: pointer; font-size: 24px; color: white; display: flex; align-items: center; justify-content: center; }
@@ -65,7 +63,7 @@
     </div>
 
     <div class="sidebar">
-        <div id="status">Подключение к сети...</div>
+        <div id="status">Сеть...</div>
         <div style="padding:20px; border-bottom: 1px solid #333;">
             <h3 id="my-name-tag">...</h3>
             <button onclick="addFriend()" style="color:var(--green); background:none; border:none; cursor:pointer; font-size:12px; margin-top:5px;">+ Добавить контакт</button>
@@ -106,7 +104,7 @@
     async function login() {
         myName = document.getElementById('a-name').value.trim().toLowerCase();
         let pass = document.getElementById('a-pass').value.trim();
-        if(!myName || !pass) return alert("Введите имя и пароль!");
+        if(!myName || !pass) return alert("Введите данные!");
 
         const snap = await db.ref(`users/${myName}`).once('value');
         if(snap.exists() && snap.val().pass !== pass) return alert("Неверный пароль!");
@@ -123,13 +121,12 @@
 
     function initPeer() {
         peer = new Peer(myName, {
-            config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }, { 'urls': 'stun:stun1.l.google.com:19302' }]},
-            debug: 1
+            config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }, { 'urls': 'stun:stun1.l.google.com:19302' }]}
         });
-        peer.on('open', () => document.getElementById('status').innerText = "● В сети");
+        peer.on('open', () => document.getElementById('status').innerText = "● Онлайн");
         peer.on('call', call => {
             currentCall = call;
-            console.log("Входящий вызов через PeerJS");
+            // Важно: ожидаем клика для принятия
         });
     }
 
@@ -141,16 +138,28 @@
                 document.getElementById('ringtone').play().catch(()=>{});
                 document.getElementById('call-screen').style.display = 'flex';
                 document.getElementById('btn-accept').style.display = 'flex';
-            } else if (!d) {
-                stopAllMedia();
-            }
+            } else if (!d) { stopAllMedia(); }
         });
+    }
+
+    // Обработка звукового потока
+    function setupRemoteStream(stream) {
+        const rv = document.getElementById('remoteVid');
+        rv.srcObject = stream;
+        
+        // Магия для обхода блокировки звука
+        rv.onloadedmetadata = () => {
+            rv.play().catch(e => {
+                console.log("Автозапуск звука блокирован. Нужен клик.");
+                // Если блок, пробуем включить звук по любому клику на экране
+                window.addEventListener('click', () => { rv.play(); }, { once: true });
+            });
+        };
     }
 
     async function startCallProcess(isVideo) {
         if(!partner) return;
         try {
-            // Включаем эхоподавление для чистого звука
             localStream = await navigator.mediaDevices.getUserMedia({
                 video: isVideo, 
                 audio: { echoCancellation: true, noiseSuppression: true }
@@ -165,16 +174,10 @@
                 const call = peer.call(partner, localStream);
                 if(call) {
                     currentCall = call;
-                    call.on('stream', rs => {
-                        const rv = document.getElementById('remoteVid');
-                        rv.srcObject = rs;
-                        rv.muted = false; // Принудительно включаем звук
-                    });
+                    call.on('stream', setupRemoteStream);
                 }
             }, 1000);
-        } catch(e) {
-            alert("Ошибка: Камера или микрофон недоступны!");
-        }
+        } catch(e) { alert("Микрофон/камера недоступны!"); }
     }
 
     async function acceptCall() {
@@ -182,24 +185,18 @@
         try {
             localStream = await navigator.mediaDevices.getUserMedia({
                 video: inData.video, 
-                audio: { echoCancellation: true, noiseSuppression: true }
+                audio: true 
             });
             document.getElementById('localVid').srcObject = localStream;
             
             if(currentCall) {
                 currentCall.answer(localStream);
-                currentCall.on('stream', rs => {
-                    const rv = document.getElementById('remoteVid');
-                    rv.srcObject = rs;
-                    rv.muted = false; // Принудительно включаем звук
-                });
+                currentCall.on('stream', setupRemoteStream);
             }
             
             document.getElementById('btn-accept').style.display = 'none';
             db.ref(`calls/${myName}`).update({active: false});
-        } catch(e) {
-            alert("Ошибка при подключении звука/видео");
-        }
+        } catch(e) { alert("Ошибка ответа"); }
     }
 
     function endCall() {
@@ -210,45 +207,37 @@
 
     function stopAllMedia() {
         document.getElementById('ringtone').pause();
-        if(localStream) {
-            localStream.getTracks().forEach(t => t.stop());
-            localStream = null;
-        }
+        if(localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
         if(currentCall) currentCall.close();
         document.getElementById('call-screen').style.display = 'none';
         document.getElementById('remoteVid').srcObject = null;
     }
 
+    // --- ОСТАЛЬНЫЕ ФУНКЦИИ (ЧАТ, КОНТАКТЫ) ---
     function addFriend() {
         let f = prompt("Имя контакта:");
         if(f) db.ref(`users/${myName}/friends/${f.toLowerCase()}`).set(true);
     }
-
     function loadContacts() {
         db.ref(`users/${myName}/friends`).on('value', snap => {
             const b = document.getElementById('contactsBox'); b.innerHTML = '';
             Object.keys(snap.val() || {}).forEach(name => {
                 const d = document.createElement('div');
-                d.className = 'contact';
-                d.innerText = "👤 " + name;
+                d.className = 'contact'; d.innerText = "👤 " + name;
                 d.onclick = () => selectChat(name);
                 b.appendChild(d);
             });
         });
     }
-
     function selectChat(name) {
         partner = name;
         document.getElementById('chat-title').innerText = name;
         document.getElementById('chat-tools').style.display = 'flex';
         document.getElementById('m-inp').disabled = false;
-        
         if(currentChatRef) currentChatRef.off();
         currentChatRef = db.ref(`chats/${[myName, partner].sort().join("_")}`);
-        
         currentChatRef.on('value', snap => {
-            const box = document.getElementById('messages');
-            box.innerHTML = '';
+            const box = document.getElementById('messages'); box.innerHTML = '';
             snap.forEach(c => {
                 const m = c.val();
                 const div = document.createElement('div');
@@ -260,14 +249,12 @@
             box.scrollTop = box.scrollHeight;
         });
     }
-
     function sendMsg(e) {
         e.preventDefault(); const i = document.getElementById('m-inp');
         if(!i.value) return;
         db.ref(`chats/${[myName, partner].sort().join("_")}`).push({from:myName, text:i.value});
         i.value = '';
     }
-
     async function toggleVoice() {
         const btn = document.getElementById('voice-btn');
         if (!mediaRec) {

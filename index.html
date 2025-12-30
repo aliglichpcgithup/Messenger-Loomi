@@ -126,7 +126,15 @@
         peer.on('open', () => document.getElementById('status').innerText = "● Онлайн");
         peer.on('call', call => {
             currentCall = call;
-            // Важно: ожидаем клика для принятия
+            // Слушаем поток сразу при получении звонка
+            call.on('stream', stream => {
+                const rv = document.getElementById('remoteVid');
+                rv.srcObject = stream;
+                // Пытаемся запустить принудительно
+                rv.play().catch(() => {
+                    console.log("Ожидание взаимодействия для звука...");
+                });
+            });
         });
     }
 
@@ -142,27 +150,17 @@
         });
     }
 
-    // Обработка звукового потока
-    function setupRemoteStream(stream) {
-        const rv = document.getElementById('remoteVid');
-        rv.srcObject = stream;
-        
-        // Магия для обхода блокировки звука
-        rv.onloadedmetadata = () => {
-            rv.play().catch(e => {
-                console.log("Автозапуск звука блокирован. Нужен клик.");
-                // Если блок, пробуем включить звук по любому клику на экране
-                window.addEventListener('click', () => { rv.play(); }, { once: true });
-            });
-        };
-    }
-
     async function startCallProcess(isVideo) {
         if(!partner) return;
         try {
+            // Пытаемся активировать AudioContext по клику
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            const ctx = new AudioContext();
+            if (ctx.state === 'suspended') await ctx.resume();
+
             localStream = await navigator.mediaDevices.getUserMedia({
                 video: isVideo, 
-                audio: { echoCancellation: true, noiseSuppression: true }
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
             });
             document.getElementById('localVid').srcObject = localStream;
             
@@ -174,7 +172,12 @@
                 const call = peer.call(partner, localStream);
                 if(call) {
                     currentCall = call;
-                    call.on('stream', setupRemoteStream);
+                    call.on('stream', stream => {
+                        const rv = document.getElementById('remoteVid');
+                        rv.srcObject = stream;
+                        rv.muted = false;
+                        rv.play();
+                    });
                 }
             }, 1000);
         } catch(e) { alert("Микрофон/камера недоступны!"); }
@@ -183,6 +186,11 @@
     async function acceptCall() {
         document.getElementById('ringtone').pause();
         try {
+            // Разблокировка звука при клике на кнопку Принять
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            const ctx = new AudioContext();
+            if (ctx.state === 'suspended') await ctx.resume();
+
             localStream = await navigator.mediaDevices.getUserMedia({
                 video: inData.video, 
                 audio: true 
@@ -191,7 +199,13 @@
             
             if(currentCall) {
                 currentCall.answer(localStream);
-                currentCall.on('stream', setupRemoteStream);
+                // Поток уже обрабатывается в initPeer или тут:
+                currentCall.on('stream', stream => {
+                    const rv = document.getElementById('remoteVid');
+                    rv.srcObject = stream;
+                    rv.muted = false;
+                    rv.play();
+                });
             }
             
             document.getElementById('btn-accept').style.display = 'none';
@@ -213,7 +227,7 @@
         document.getElementById('remoteVid').srcObject = null;
     }
 
-    // --- ОСТАЛЬНЫЕ ФУНКЦИИ (ЧАТ, КОНТАКТЫ) ---
+    // --- ФУНКЦИИ КОНТАКТОВ И ЧАТА ---
     function addFriend() {
         let f = prompt("Имя контакта:");
         if(f) db.ref(`users/${myName}/friends/${f.toLowerCase()}`).set(true);

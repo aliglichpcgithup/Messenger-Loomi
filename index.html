@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loomi 2025</title>
+    <title>Loomi Messenger 2025</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
@@ -11,23 +11,36 @@
         :root { --l-green: #25D366; --bg: #0b141a; --dark: #111b21; --light: #e9edef; }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
         body { background: var(--bg); color: var(--light); height: 100vh; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        
+        /* Авторизация */
         #auth-screen { background: var(--dark); padding: 40px; border-radius: 20px; text-align: center; width: 350px; z-index: 1000; border: 1px solid #333; }
-        .inp { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: none; background: #2a3942; color: white; }
-        .btn-main { width: 100%; padding: 12px; background: var(--l-green); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .inp { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: none; background: #2a3942; color: white; outline: none; }
+        .btn-main { width: 100%; padding: 12px; background: var(--l-green); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: #000; }
+
+        /* Интерфейс */
         .app { width: 100vw; height: 100vh; display: none; }
         .sidebar { width: 300px; background: var(--dark); border-right: 1px solid #333; display: flex; flex-direction: column; }
-        .chat-area { flex: 1; display: flex; flex-direction: column; background: #0b141a; }
-        #messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-        .msg { padding: 8px 12px; border-radius: 8px; max-width: 75%; color: white; }
+        .chat-area { flex: 1; display: flex; flex-direction: column; background: #0b141a; position: relative; }
+
+        /* Сообщения */
+        #messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-color: #0b141a; background-blend-mode: overlay; }
+        .msg { padding: 8px 12px; border-radius: 8px; max-width: 75%; color: white; position: relative; }
         .msg.mine { align-self: flex-end; background: #005c4b; }
         .msg.others { align-self: flex-start; background: #202c33; }
+        .del { cursor: pointer; font-size: 10px; margin-left: 8px; opacity: 0.5; }
+
+        /* Звонки */
         #call-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; }
         video { width: 100%; height: 100%; object-fit: cover; position: absolute; }
-        #localVid { width: 120px; height: 160px; top: 20px; right: 20px; border: 2px solid white; border-radius: 10px; z-index: 10; }
+        #localVid { width: 120px; height: 160px; top: 20px; right: 20px; border: 2px solid white; border-radius: 10px; z-index: 10; object-fit: cover; }
         .call-controls { position: absolute; bottom: 40px; display: flex; gap: 20px; z-index: 100; }
-        .c-btn { width: 60px; height: 60px; border-radius: 50%; border: none; cursor: pointer; font-size: 24px; color: white; }
+        .c-btn { width: 60px; height: 60px; border-radius: 50%; border: none; cursor: pointer; font-size: 24px; color: white; display: flex; align-items: center; justify-content: center; }
         .c-red { background: #ff3b30; }
         .c-green { background: #25D366; }
+        .c-gray { background: #2a3942; }
+
+        .header { padding: 15px; background: #202c33; display: flex; justify-content: space-between; align-items: center; }
+        .footer { padding: 10px; background: #202c33; display: flex; gap: 10px; align-items: center; }
     </style>
 </head>
 <body>
@@ -35,8 +48,9 @@
 <audio id="ringtone" loop src="https://www.soundjay.com/phone/phone-calling-1.mp3"></audio>
 
 <div id="auth-screen">
-    <h2>Loomi</h2>
-    <input type="text" id="a-name" class="inp" placeholder="Имя">
+    <h2 style="color: var(--l-green);">Loomi</h2>
+    <p style="font-size: 12px; opacity: 0.6; margin-bottom: 20px;">v.2025.12.30</p>
+    <input type="text" id="a-name" class="inp" placeholder="Ваше имя">
     <input type="password" id="a-pass" class="inp" placeholder="Пароль">
     <button class="btn-main" onclick="login()">ВОЙТИ</button>
 </div>
@@ -52,25 +66,26 @@
     </div>
 
     <div class="sidebar">
-        <div style="padding:20px;">
+        <div style="padding:20px; border-bottom: 1px solid #333;">
             <h3 id="my-name-tag">Me</h3>
-            <button onclick="addFriend()" style="color:var(--l-green); background:none; border:none; cursor:pointer;">+ Друг</button>
+            <button onclick="addFriend()" style="color:var(--l-green); background:none; border:none; cursor:pointer; font-size:12px;">+ Добавить друга</button>
         </div>
-        <div id="contactsBox"></div>
+        <div id="contactsBox" style="overflow-y:auto; flex:1;"></div>
     </div>
 
     <div class="chat-area">
-        <div style="padding:15px; background:#202c33; display:flex; justify-content:space-between;">
-            <h4 id="chat-title">Чат</h4>
+        <div class="header">
+            <h4 id="chat-title">Выберите чат</h4>
             <div id="chat-tools" style="display:none; gap:20px;">
-                <span onclick="startCall(true)" style="cursor:pointer;">📹</span>
-                <span onclick="startCall(false)" style="cursor:pointer;">📞</span>
+                <span onclick="startCall(true)" style="cursor:pointer; font-size:20px;">📹</span>
+                <span onclick="startCall(false)" style="cursor:pointer; font-size:20px;">📞</span>
             </div>
         </div>
         <div id="messages"></div>
-        <form style="padding:10px; display:flex; gap:10px;" onsubmit="sendMsg(event)">
+        <form class="footer" onsubmit="sendMsg(event)">
             <input type="text" id="m-inp" class="inp" style="margin:0;" placeholder="Сообщение" disabled>
-            <button type="submit" style="background:none; border:none; font-size:20px; cursor:pointer;">🚀</button>
+            <button type="button" id="voice-btn" class="c-btn" style="width:40px; height:40px; font-size:18px; background:#2a3942;" onclick="toggleVoice()">🎤</button>
+            <button type="submit" style="background:none; border:none; font-size:24px; cursor:pointer;">🚀</button>
         </form>
     </div>
 </div>
@@ -85,11 +100,12 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let myName, partner, peer, localStream, currentCall, inData;
+    let myName, partner, peer, localStream, currentCall, inData, mediaRec, audioCh = [];
+    let currentChatRef = null;
 
     async function login() {
         myName = document.getElementById('a-name').value.trim();
-        if(!myName) return;
+        if(!myName) return alert("Введите имя!");
         document.getElementById('auth-screen').style.display = 'none';
         document.getElementById('app').style.display = 'flex';
         document.getElementById('my-name-tag').innerText = myName;
@@ -100,18 +116,10 @@
     }
 
     function initPeer() {
-        // Добавляем больше STUN серверов для обхода блокировок
         peer = new Peer(myName, {
-            config: {'iceServers': [
-                { 'urls': 'stun:stun.l.google.com:19302' },
-                { 'urls': 'stun:stun1.l.google.com:19302' }
-            ]}
+            config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]}
         });
-        
-        peer.on('call', call => {
-            console.log("Входящий звонок от:", call.peer);
-            currentCall = call; 
-        });
+        peer.on('call', call => { currentCall = call; });
     }
 
     function listenSignals() {
@@ -122,28 +130,21 @@
                 document.getElementById('ringtone').play().catch(()=>{});
                 document.getElementById('call-screen').style.display = 'flex';
                 document.getElementById('btn-accept').style.display = 'flex';
-            } else if (!d) {
-                stopAllMedia();
-            }
+            } else if (!d) { stopAllMedia(); }
         });
     }
 
     async function startCall(isVideo) {
         if(!partner) return;
-        // Сначала получаем доступ, потом сигнализируем
         try {
             localStream = await navigator.mediaDevices.getUserMedia({video: isVideo, audio: true});
             document.getElementById('localVid').srcObject = localStream;
-            
             db.ref(`calls/${partner}`).set({from: myName, video: isVideo, active: true});
             document.getElementById('call-screen').style.display = 'flex';
             document.getElementById('btn-accept').style.display = 'none';
-
             const call = peer.call(partner, localStream);
             call.on('stream', rs => document.getElementById('remoteVid').srcObject = rs);
-        } catch(e) {
-            alert("Камера недоступна! Если вы открыли файл через file://, браузер блокирует камеру. Используйте способ с chrome://flags (см. выше).");
-        }
+        } catch(e) { alert("Ошибка камеры/микрофона!"); }
     }
 
     async function acceptCall() {
@@ -155,7 +156,7 @@
             currentCall.on('stream', rs => document.getElementById('remoteVid').srcObject = rs);
             document.getElementById('btn-accept').style.display = 'none';
             db.ref(`calls/${myName}`).update({active: false});
-        } catch(e) { alert("Ошибка камеры"); }
+        } catch(e) { alert("Ошибка подключения!"); }
     }
 
     function endCall() {
@@ -170,7 +171,7 @@
         document.getElementById('call-screen').style.display = 'none';
     }
 
-    // --- Чат и Контакты ---
+    // --- ЛОГИКА ЧАТА ---
     function addFriend() { let f = prompt("Имя друга:"); if(f) db.ref(`users/${myName}/friends/${f}`).set(true); }
 
     function loadContacts() {
@@ -178,7 +179,7 @@
             const b = document.getElementById('contactsBox'); b.innerHTML = '';
             Object.keys(snap.val() || {}).forEach(name => {
                 const d = document.createElement('div');
-                d.style = "padding:10px; cursor:pointer; border-bottom:1px solid #333";
+                d.style = "padding:15px; cursor:pointer; border-bottom:1px solid #333";
                 d.innerText = name;
                 d.onclick = () => selectChat(name);
                 b.appendChild(d);
@@ -192,14 +193,25 @@
         document.getElementById('chat-tools').style.display = 'flex';
         document.getElementById('m-inp').disabled = false;
         
-        db.ref(`chats/${[myName, partner].sort().join("_")}`).on('value', snap => {
+        if(currentChatRef) currentChatRef.off();
+        currentChatRef = db.ref(`chats/${[myName, partner].sort().join("_")}`);
+        
+        currentChatRef.on('value', snap => {
             const box = document.getElementById('messages');
-            box.innerHTML = '';
+            box.innerHTML = ''; // ИСПРАВЛЕНИЕ ДУБЛЕЙ
             snap.forEach(c => {
                 const m = c.val();
                 const div = document.createElement('div');
                 div.className = `msg ${m.from === myName ? 'mine' : 'others'}`;
-                div.innerText = m.text;
+                
+                if(m.text) div.innerText = m.text;
+                else if(m.audio) div.innerHTML = `<audio controls src="${m.audio}" style="width:180px;"></audio>`;
+                
+                const delBtn = document.createElement('span');
+                delBtn.className = 'del'; delBtn.innerText = '✕';
+                delBtn.onclick = () => c.ref.remove();
+                div.appendChild(delBtn);
+                
                 box.appendChild(div);
             });
             box.scrollTop = box.scrollHeight;
@@ -211,6 +223,32 @@
         if(!i.value) return;
         db.ref(`chats/${[myName, partner].sort().join("_")}`).push({from:myName, text:i.value, time:Date.now()});
         i.value = '';
+    }
+
+    async function toggleVoice() {
+        const btn = document.getElementById('voice-btn');
+        if (!mediaRec) {
+            try {
+                const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRec = new MediaRecorder(s);
+                audioCh = [];
+                mediaRec.ondataavailable = e => audioCh.push(e.data);
+                mediaRec.onstop = () => {
+                    const r = new FileReader();
+                    r.readAsDataURL(new Blob(audioCh, { type: 'audio/webm' }));
+                    r.onloadend = () => {
+                        db.ref(`chats/${[myName, partner].sort().join("_")}`).push({from: myName, audio: r.result, time: Date.now()});
+                    };
+                    s.getTracks().forEach(t => t.stop());
+                    mediaRec = null;
+                };
+                mediaRec.start();
+                btn.innerText = '🛑'; btn.style.color = 'red';
+            } catch (e) { alert("Микрофон недоступен!"); }
+        } else {
+            mediaRec.stop();
+            btn.innerText = '🎤'; btn.style.color = 'white';
+        }
     }
 </script>
 </body>

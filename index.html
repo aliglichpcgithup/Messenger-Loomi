@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loomi — Твой мессенджер</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <style>
+        :root { --l-green: #25D366; --l-blue: #34b7f1; --bg: #0b141a; --dark: #111b21; --light: #e9edef; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: var(--bg); color: var(--light); height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+
+        /* Auth */
+        #auth-screen { background: var(--dark); padding: 40px; border-radius: 20px; text-align: center; width: 350px; border: 1px solid rgba(255,255,255,0.1); z-index: 1000; }
+        .inp { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: none; background: #2a3942; color: white; outline: none; }
+        .btn-main { width: 100%; padding: 12px; background: var(--l-green); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: #000; }
+
+        /* UI */
+        .app { width: 100vw; height: 100vh; display: none; }
+        .sidebar { width: 30%; min-width: 300px; background: var(--dark); border-right: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; }
+        .chat-area { flex: 1; display: flex; flex-direction: column; position: relative; }
+
+        /* Contacts */
+        .contact { padding: 15px; display: flex; align-items: center; gap: 15px; cursor: pointer; border-bottom: 1px solid #222d34; transition: 0.2s; }
+        .avatar { width: 45px; height: 45px; border-radius: 50%; background: #6c5ce7; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; }
+        .status-dot { position: absolute; bottom: 2px; right: 2px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--dark); background: #95a5a6; }
+        .status-dot.online { background: var(--l-green); }
+
+        /* Messages */
+        #messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-color: #0b141a; background-blend-mode: overlay; }
+        .msg { padding: 8px 12px; border-radius: 8px; max-width: 75%; font-size: 14px; position: relative; word-wrap: break-word; color: white; }
+        .msg.mine { align-self: flex-end; background: #005c4b; }
+        .msg.others { align-self: flex-start; background: #202c33; }
+        .msg-info { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 4px; font-size: 10px; opacity: 0.7; }
+        .delete-btn { opacity: 0; position: absolute; right: -25px; cursor: pointer; color: #ff4757; transition: 0.2s; padding: 5px; }
+        .msg:hover .delete-btn { opacity: 1; }
+
+        /* Call System */
+        #call-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; }
+        #remoteVid { width: 100%; height: 100%; object-fit: cover; position: absolute; }
+        #localVid { width: 120px; height: 170px; top: 20px; right: 20px; border-radius: 12px; border: 2px solid white; position: absolute; z-index: 10; object-fit: cover; }
+        .call-controls { position: absolute; bottom: 50px; display: flex; gap: 20px; z-index: 100; }
+        .c-btn { width: 60px; height: 60px; border-radius: 50%; border: none; cursor: pointer; font-size: 24px; color: white; display: flex; align-items: center; justify-content: center; }
+        .c-red { background: #ff3b30; }
+        .c-green { background: var(--l-green); }
+        .c-gray { background: rgba(255,255,255,0.2); }
+        .c-gray.off { background: #ff3b30; }
+
+        .header { padding: 10px 20px; background: #202c33; display: flex; justify-content: space-between; align-items: center; }
+        .footer { padding: 10px; background: #202c33; display: flex; gap: 10px; align-items: center; }
+    </style>
+</head>
+<body>
+
+<audio id="ringtone" loop src="https://www.soundjay.com/phone/phone-calling-1.mp3"></audio>
+
+<div id="auth-screen">
+    <h2>Loomi</h2>
+    <p style="font-size: 12px; margin-bottom: 20px; opacity: 0.6;">Твой безопасный чат</p>
+    <input type="text" id="a-name" class="inp" placeholder="Твое имя">
+    <input type="password" id="a-pass" class="inp" placeholder="Пароль">
+    <button class="btn-main" onclick="login()">ВОЙТИ</button>
+</div>
+
+<div class="app" id="app">
+    <div id="call-screen">
+        <div style="text-align:center; z-index: 100; position:absolute; top:80px;">
+            <h1 id="call-partner-name">Абонент</h1>
+            <p id="call-timer-display" style="color: var(--l-green); font-weight: bold;">Вызов...</p>
+        </div>
+        <video id="remoteVid" autoplay playsinline></video>
+        <video id="localVid" autoplay muted playsinline></video>
+        <div class="call-controls">
+            <button id="btn-mic" class="c-btn c-gray" onclick="toggleMic()">🎤</button>
+            <button id="btn-vid" class="c-btn c-gray" onclick="toggleVid()">📷</button>
+            <button id="btn-accept" class="c-btn c-green" onclick="acceptCall()">📞</button>
+            <button class="c-btn c-red" onclick="endCall()">🛑</button>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <div style="padding:20px; background:#202c33; border-bottom: 1px solid #333;">
+            <h3 id="my-name-tag">Loomi Me</h3>
+            <button onclick="addFriend()" style="color:var(--l-green); background:none; border:none; cursor:pointer; font-size:12px;">+ Добавить друга</button>
+        </div>
+        <div id="contactsBox" style="flex:1; overflow-y:auto;"></div>
+    </div>
+
+    <div class="chat-area">
+        <div class="header">
+            <div>
+                <h4 id="chat-title">Чат Loomi</h4>
+                <span id="typing-tag" style="font-size:12px; color:var(--l-green); display:none;">печатает...</span>
+            </div>
+            <div id="chat-tools" style="display:none; gap:15px; align-items:center;">
+                <input type="color" id="wallpaper-picker" style="width:25px; height:25px; cursor:pointer;" title="Фон Loomi">
+                <span onclick="startCall(true)" style="cursor:pointer; font-size:22px;">📹</span>
+                <span onclick="startCall(false)" style="cursor:pointer; font-size:22px;">📞</span>
+            </div>
+        </div>
+        <div id="messages"></div>
+        <form class="footer" onsubmit="sendMsg(event)">
+            <input type="text" id="m-inp" class="inp" style="margin:0;" placeholder="Написать в Loomi..." disabled>
+            <button type="button" id="voice-btn" class="c-btn" style="width:40px; height:40px; font-size:18px;" onclick="toggleVoice()">🎤</button>
+            <button type="submit" style="background:none; border:none; font-size:24px; cursor:pointer;">🚀</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyA9DEtNqidbnYgWzI6FbYguI_V31Jx70PM",
+        databaseURL: "https://loomi-48757-default-rtdb.firebaseio.com",
+        projectId: "loomi-48757",
+        appId: "1:332015550824:web:5b7e5c9aafa1e7703e16dd"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let myName, partner, peer, localStream, currentCall, inData;
+    let callWaitTimer, callDurationTimer, seconds = 0;
+    let micStatus = true, vidStatus = true, mediaRec, audioCh = [];
+
+    // Функция проверки протокола
+    function checkSecure() {
+        if (location.protocol === 'file:') {
+            console.error("Loomi: Вы открыли файл напрямую. Камера не будет работать без HTTP/HTTPS сервера.");
+            return false;
+        }
+        return true;
+    }
+
+    async function login() {
+        myName = document.getElementById('a-name').value.trim();
+        let pass = document.getElementById('a-pass').value.trim();
+        if(!myName || !pass) return alert("Заполни все поля!");
+
+        const snap = await db.ref(`users/${myName}`).once('value');
+        if(snap.exists() && snap.val().pass !== pass) return alert("Пароль неверный!");
+        if(!snap.exists()) await db.ref(`users/${myName}`).set({pass: pass});
+
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('app').style.display = 'flex';
+        document.getElementById('my-name-tag').innerText = myName;
+
+        initPeer();
+        initPresence();
+        listenSignals();
+        loadContacts();
+        checkSecure();
+    }
+
+    function initPresence() {
+        const r = db.ref(`status/${myName}`);
+        db.ref('.info/connected').on('value', s => { if(s.val()) { r.set('online'); r.onDisconnect().set('offline'); }});
+    }
+
+    function initPeer() {
+        peer = new Peer(myName, {
+            config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]},
+            debug: 1
+        });
+        
+        peer.on('call', call => {
+            console.log("Loomi PeerJS: Входящий вызов от", call.peer);
+            currentCall = call; 
+        });
+
+        peer.on('error', err => {
+            console.error("Loomi PeerJS Error:", err.type);
+            if(err.type === 'peer-unavailable') alert("Друг сейчас не в Loomi");
+        });
+    }
+
+    function listenSignals() {
+        db.ref(`calls/${myName}`).on('value', snap => {
+            const d = snap.val();
+            if(d && d.active) {
+                inData = d;
+                document.getElementById('ringtone').play().catch(()=>console.log("Кликните для звука"));
+                document.getElementById('call-screen').style.display = 'flex';
+                document.getElementById('call-partner-name').innerText = d.from;
+                document.getElementById('btn-accept').style.display = 'flex';
+            } else if (!d && document.getElementById('call-screen').style.display === 'flex') {
+                stopAllMedia();
+            }
+        });
+    }
+
+    async function startCall(isVideo) {
+        if(!partner) return;
+        if(!checkSecure()) alert("Loomi: Камера недоступна при открытии файла 'file://'. Запустите сервер!");
+        
+        db.ref(`calls/${partner}`).set({from: myName, video: isVideo, active: true});
+        document.getElementById('call-screen').style.display = 'flex';
+        document.getElementById('btn-accept').style.display = 'none';
+        document.getElementById('call-partner-name').innerText = partner;
+
+        callWaitTimer = setTimeout(() => { alert("Друг не ответил в Loomi"); endCall(); }, 20000);
+
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({video: isVideo, audio: true});
+            document.getElementById('localVid').srcObject = localStream;
+            const call = peer.call(partner, localStream);
+            handleStream(call);
+        } catch(e) { 
+            console.error(e);
+            alert("Loomi: Нет доступа к камере. Проверьте HTTPS."); 
+            endCall(); 
+        }
+    }
+
+    async function acceptCall() {
+        document.getElementById('ringtone').pause();
+        if(!currentCall) return endCall();
+
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({video: inData.video, audio: true});
+            document.getElementById('localVid').srcObject = localStream;
+            currentCall.answer(localStream);
+            handleStream(currentCall);
+            db.ref(`calls/${myName}`).update({active: false});
+        } catch(e) { 
+            alert("Loomi: Ошибка камеры."); 
+            endCall(); 
+        }
+    }
+
+    function handleStream(call) {
+        currentCall = call;
+        call.on('stream', remoteStream => {
+            clearTimeout(callWaitTimer);
+            document.getElementById('remoteVid').srcObject = remoteStream;
+            document.getElementById('btn-accept').style.display = 'none';
+            if(!callDurationTimer) {
+                seconds = 0;
+                callDurationTimer = setInterval(() => {
+                    seconds++;
+                    let m = Math.floor(seconds/60).toString().padStart(2,'0');
+                    let s = (seconds%60).toString().padStart(2,'0');
+                    document.getElementById('call-timer-display').innerText = `${m}:${s}`;
+                }, 1000);
+            }
+        });
+        call.on('close', stopAllMedia);
+    }
+
+    function endCall() {
+        if(partner) db.ref(`calls/${partner}`).remove();
+        db.ref(`calls/${myName}`).remove();
+        stopAllMedia();
+    }
+
+    function stopAllMedia() {
+        clearTimeout(callWaitTimer); 
+        clearInterval(callDurationTimer); 
+        callDurationTimer = null;
+        document.getElementById('ringtone').pause();
+        if(localStream) localStream.getTracks().forEach(t => t.stop());
+        if(currentCall) currentCall.close();
+        document.getElementById('call-screen').style.display = 'none';
+        document.getElementById('call-timer-display').innerText = 'Вызов...';
+    }
+
+    function toggleMic() { micStatus = !micStatus; if(localStream) localStream.getAudioTracks()[0].enabled = micStatus; document.getElementById('btn-mic').classList.toggle('off', !micStatus); }
+    function toggleVid() { vidStatus = !vidStatus; if(localStream) localStream.getVideoTracks()[0].enabled = vidStatus; document.getElementById('btn-vid').classList.toggle('off', !vidStatus); }
+
+    function addFriend() { let f = prompt("Имя друга в Loomi:"); if(f) db.ref(`users/${myName}/friends/${f}`).set(true); }
+
+    function loadContacts() {
+        db.ref(`users/${myName}/friends`).on('value', snap => {
+            const b = document.getElementById('contactsBox'); b.innerHTML = '';
+            Object.keys(snap.val() || {}).forEach(name => {
+                const d = document.createElement('div');
+                d.className = 'contact';
+                d.innerHTML = `<div class="avatar">${name[0]}<div class="status-dot" id="st-${name}"></div></div> ${name}`;
+                d.onclick = () => selectChat(name); b.appendChild(d);
+                db.ref(`status/${name}`).on('value', s => {
+                    let dot = document.getElementById(`st-${name}`);
+                    if(dot) s.val()==='online' ? dot.classList.add('online') : dot.classList.remove('online');
+                });
+            });
+        });
+    }
+
+    function selectChat(name) {
+        partner = name;
+        document.getElementById('chat-title').innerText = "Чат с " + name;
+        document.getElementById('chat-tools').style.display = 'flex';
+        document.getElementById('m-inp').disabled = false;
+        
+        const id = [myName, partner].sort().join("_");
+        db.ref(`chats/${id}`).on('value', snap => {
+            const box = document.getElementById('messages'); box.innerHTML = '';
+            snap.forEach(child => {
+                const m = child.val();
+                if(m.from === partner && !m.read) child.ref.update({read: true});
+                const t = new Date(m.time);
+                const timeStr = t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0');
+                const div = document.createElement('div');
+                div.className = `msg ${m.from === myName ? 'mine' : 'others'}`;
+                let cont = m.text ? m.text : `<audio controls src="${m.audio}" style="width:200px; height:35px;"></audio>`;
+                let ticks = m.from === myName ? `<span style="color:${m.read?'var(--l-blue)':'#8696a0'}">✔✔</span>` : '';
+                div.innerHTML = `${cont} <div class="msg-info"><span>${timeStr}</span> ${ticks}</div><span class="delete-btn" onclick="delMsg('${child.key}')">✕</span>`;
+                box.appendChild(div);
+            });
+            box.scrollTop = 99999;
+        });
+    }
+
+    function sendMsg(e) {
+        e.preventDefault(); const i = document.getElementById('m-inp'); if(!i.value || !partner) return;
+        db.ref(`chats/${[myName, partner].sort().join("_")}`).push({from:myName, text:i.value, read:false, time:Date.now()});
+        i.value = '';
+    }
+
+    function delMsg(key) { if(confirm("Удалить сообщение?")) db.ref(`chats/${[myName,partner].sort().join("_")}/${key}`).remove(); }
+
+    document.getElementById('wallpaper-picker').oninput = (e) => {
+        document.getElementById('messages').style.background = e.target.value;
+    };
+
+    async function toggleVoice() {
+        if(!checkSecure()) return alert("Loomi: Запись голоса невозможна в file://");
+        const btn = document.getElementById('voice-btn');
+        if(!mediaRec) {
+            try {
+                const s = await navigator.mediaDevices.getUserMedia({audio:true});
+                mediaRec = new MediaRecorder(s); audioCh = [];
+                mediaRec.ondataavailable = e => audioCh.push(e.data);
+                mediaRec.onstop = () => {
+                    const r = new FileReader(); r.readAsDataURL(new Blob(audioCh, {type:'audio/webm'}));
+                    r.onloadend = () => { db.ref(`chats/${[myName, partner].sort().join("_")}`).push({from:myName, audio:r.result, read:false, time:Date.now()}); };
+                    s.getTracks().forEach(t=>t.stop()); mediaRec = null;
+                };
+                mediaRec.start(); btn.style.color = 'red';
+            } catch(e) { alert("Loomi: Микрофон недоступен."); }
+        } else { mediaRec.stop(); btn.style.color = '#8696a0'; }
+    }
+</script>
+</body>
+</html>

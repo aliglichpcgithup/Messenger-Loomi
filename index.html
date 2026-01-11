@@ -12,7 +12,11 @@
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
         body { background: var(--bg); color: var(--light); height: 100vh; display: flex; overflow: hidden; }
 
-        /* Интерфейс */
+        /* Авторизация */
+        #auth-screen { position: fixed; inset: 0; background: var(--bg); z-index: 10000; display: flex; align-items: center; justify-content: center; }
+        .auth-card { background: var(--dark); padding: 30px; border-radius: 20px; width: 320px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
+        /* Основная сетка */
         .sidebar { width: 350px; background: var(--dark); border-right: 1px solid #333; display: flex; flex-direction: column; transition: 0.3s; }
         .chat-area { flex: 1; display: flex; flex-direction: column; background: #0b141a; position: relative; }
         
@@ -21,26 +25,32 @@
             .sidebar.hidden { transform: translateX(-100%); }
         }
 
+        /* Контакты */
+        .contact { padding: 15px; border-bottom: 1px solid #222; cursor: pointer; display: flex; align-items: center; gap: 12px; }
+        .contact:hover { background: #2a3942; }
+
         /* Сообщения */
         #messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-blend-mode: overlay; background-color: #0b141a; }
-        .msg { padding: 10px 15px; border-radius: 12px; max-width: 80%; position: relative; cursor: pointer; font-size: 15px; animation: fadeIn 0.2s; }
+        .msg { padding: 10px 15px; border-radius: 12px; max-width: 85%; position: relative; cursor: pointer; font-size: 15px; word-wrap: break-word; }
         .msg.mine { align-self: flex-end; background: var(--my-msg); border-bottom-right-radius: 2px; }
         .msg.others { align-self: flex-start; background: var(--panel); border-bottom-left-radius: 2px; }
-        .msg.deleted { opacity: 0.6; font-style: italic; background: none !important; border: 1px solid #333; }
+        .msg.deleted { opacity: 0.6; font-style: italic; background: none !important; border: 1px solid #444; }
 
-        /* Выпадающее меню удаления */
-        .del-menu { position: absolute; background: var(--panel); border: 1px solid #444; border-radius: 8px; padding: 5px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
-        .del-menu button { display: block; width: 100%; padding: 10px; background: none; border: none; color: white; cursor: pointer; text-align: left; }
-        .del-menu button:hover { background: #2a3942; }
+        /* Меню удаления */
+        .del-menu { position: fixed; background: #374045; border-radius: 8px; overflow: hidden; z-index: 2000; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        .del-menu button { display: block; width: 100%; padding: 12px 20px; border: none; background: none; color: white; cursor: pointer; text-align: left; border-bottom: 1px solid #444; }
+        .del-menu button:hover { background: #4a555c; }
 
-        /* Остальное */
-        #auth-screen { position: fixed; inset: 0; background: var(--bg); z-index: 10000; display: flex; align-items: center; justify-content: center; }
-        .auth-card { background: var(--dark); padding: 30px; border-radius: 20px; width: 300px; text-align: center; }
-        .inp { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #2a3942; color: white; outline: none; margin-bottom: 10px; }
-        .btn-main { width: 100%; padding: 12px; background: var(--green); border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
-        #call-screen { position: fixed; inset: 0; background: #000; z-index: 11000; display: none; flex-direction: column; }
+        /* Поле ввода */
+        .inp { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #2a3942; color: white; outline: none; }
+        .footer { padding: 10px; background: var(--panel); display: flex; gap: 10px; align-items: center; }
+
+        /* Экран звонка */
+        #call-screen { position: fixed; inset: 0; background: #000; z-index: 11000; display: none; flex-direction: column; align-items: center; justify-content: center; }
         #remoteVid { width: 100%; height: 100%; object-fit: cover; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        #localVid { width: 100px; height: 140px; position: absolute; top: 20px; right: 20px; border-radius: 10px; border: 2px solid white; object-fit: cover; }
+        .call-tools { position: absolute; bottom: 50px; display: flex; gap: 20px; }
+        .c-btn { width: 65px; height: 65px; border-radius: 50%; border: none; color: white; font-size: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
@@ -50,43 +60,45 @@
 
 <div id="auth-screen">
     <div class="auth-card">
-        <h2 style="color: var(--green); margin-bottom: 20px;">Loomi</h2>
-        <input type="text" id="a-name" class="inp" placeholder="Логин">
-        <input type="password" id="a-pass" class="inp" placeholder="Пароль">
-        <button class="btn-main" onclick="login()">Войти</button>
+        <h2 style="color: var(--green); margin-bottom: 20px;">Loomi Messenger</h2>
+        <input type="text" id="a-name" class="inp" style="margin-bottom:10px" placeholder="Логин">
+        <input type="password" id="a-pass" class="inp" style="margin-bottom:15px" placeholder="Пароль">
+        <button class="btn-main" style="width:100%; padding:12px; background:var(--green); border:none; border-radius:10px; font-weight:bold;" onclick="login()">ВОЙТИ</button>
     </div>
 </div>
 
 <div class="sidebar" id="sidebar">
-    <div style="padding: 20px; background: var(--panel); display: flex; justify-content: space-between;">
+    <div style="padding: 20px; background: var(--panel); display: flex; justify-content: space-between; align-items: center;">
         <b id="my-name-display">...</b>
-        <button onclick="logout()" style="color:red; background:none; border:none; cursor:pointer;">Выход</button>
+        <button onclick="logout()" style="color:#ff3b30; background:none; border:none; cursor:pointer;">Выход</button>
     </div>
-    <div style="padding: 10px;"><button class="btn-main" onclick="addFriend()">+ Контакт</button></div>
+    <div style="padding: 10px;"><button class="inp" style="background:var(--green); color:black; font-weight:bold;" onclick="addFriend()">+ Новый контакт</button></div>
     <div id="contactsBox" style="overflow-y: auto; flex: 1;"></div>
 </div>
 
 <div class="chat-area">
-    <div style="padding: 15px; background: var(--panel); display: flex; align-items: center; gap: 10px;">
-        <button onclick="backToList()" id="mobile-back" style="display:none; color:white; background:none; border:none; font-size:20px;">←</button>
+    <div style="padding: 15px; background: var(--panel); display: flex; align-items: center; gap: 15px;">
+        <button onclick="backToList()" id="mobile-back" style="display:none; background:none; border:none; color:white; font-size:24px;">←</button>
         <h4 id="chat-title">Выберите чат</h4>
-        <div id="call-btns" style="display:none; margin-left: auto; gap: 15px;">
-            <span onclick="makeCall(true)" style="cursor:pointer;">📹</span>
-            <span onclick="makeCall(false)" style="cursor:pointer;">📞</span>
+        <div id="call-btns" style="display:none; margin-left: auto; gap: 20px;">
+            <span onclick="makeCall(true)" style="cursor:pointer; font-size:22px;">📹</span>
+            <span onclick="makeCall(false)" style="cursor:pointer; font-size:22px;">📞</span>
         </div>
     </div>
     <div id="messages"></div>
-    <form style="padding: 10px; display: flex; gap: 5px;" onsubmit="sendMsg(event)">
-        <input type="text" id="m-inp" class="inp" style="margin:0;" placeholder="Сообщение..." disabled>
-        <button type="submit" style="background:none; border:none; font-size:24px; cursor:pointer;">🚀</button>
+    <form class="footer" onsubmit="sendMsg(event)">
+        <button type="button" id="voice-btn" onclick="toggleVoice()" style="background:none; border:none; font-size:24px; cursor:pointer;">🎤</button>
+        <input type="text" id="m-inp" class="inp" placeholder="Сообщение..." disabled>
+        <button type="submit" style="background:none; border:none; font-size:26px; cursor:pointer;">🚀</button>
     </form>
 </div>
 
 <div id="call-screen">
     <video id="remoteVid" autoplay playsinline></video>
-    <div style="position:absolute; bottom:40px; width:100%; display:flex; justify-content:center; gap:20px;">
-        <button id="btn-accept" style="background:var(--green); width:60px; height:60px; border-radius:50%; border:none;" onclick="answerCall()">📞</button>
-        <button style="background:red; width:60px; height:60px; border-radius:50%; border:none;" onclick="endCall()">🛑</button>
+    <video id="localVid" autoplay muted playsinline></video>
+    <div class="call-tools">
+        <button id="btn-accept" class="c-btn" style="background: var(--green);" onclick="answerCall()">📞</button>
+        <button class="c-btn" style="background: #ff3b30;" onclick="endCall()">🛑</button>
     </div>
 </div>
 
@@ -100,7 +112,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let myName, partner, peer, localStream, currentCall;
+    let myName, partner, peer, localStream, currentCall, mediaRec, audioChunks = [];
 
     // --- АВТО-ВХОД ---
     window.onload = () => {
@@ -111,26 +123,90 @@
             document.getElementById('a-pass').value = u.pass;
             login();
         }
+        if (Notification.permission === "default") Notification.requestPermission();
     };
 
     async function login() {
         const name = document.getElementById('a-name').value.trim().toLowerCase();
         const pass = document.getElementById('a-pass').value.trim();
         if(!name || !pass) return;
+
         const snap = await db.ref(`users/${name}`).once('value');
-        if(snap.exists() && snap.val().pass !== pass) return alert("Пароль неверный!");
+        if(snap.exists() && snap.val().pass !== pass) return alert("Неверный пароль");
+
         if(!snap.exists()) await db.ref(`users/${name}`).set({pass});
         
         myName = name;
         localStorage.setItem('loomi_auth', JSON.stringify({name, pass}));
         document.getElementById('auth-screen').style.display = 'none';
-        document.getElementById('my-name-display').innerText = myName;
+        document.getElementById('my-name-display').innerText = "Я: " + myName;
+
         initPeer(); loadContacts(); listenSignals();
     }
 
     function logout() { localStorage.removeItem('loomi_auth'); location.reload(); }
 
-    // --- ЧАТ И УДАЛЕНИЕ СООБЩЕНИЙ ---
+    // --- ПИРИНГ И ЗВОНКИ ---
+    function initPeer() {
+        peer = new Peer(myName, { config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]} });
+        peer.on('call', call => {
+            currentCall = call;
+            call.on('stream', stream => {
+                document.getElementById('remoteVid').srcObject = stream;
+                document.getElementById('remoteAudio').srcObject = stream;
+            });
+        });
+    }
+
+    async function makeCall(video) {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            if (ctx.state === 'suspended') await ctx.resume();
+
+            localStream = await navigator.mediaDevices.getUserMedia({video, audio: true});
+            document.getElementById('localVid').srcObject = localStream;
+            db.ref(`calls/${partner}`).set({from: myName, active: true, video});
+            document.getElementById('call-screen').style.display = 'flex';
+            document.getElementById('btn-accept').style.display = 'none';
+
+            const call = peer.call(partner, localStream);
+            currentCall = call;
+            call.on('stream', stream => {
+                document.getElementById('remoteVid').srcObject = stream;
+                document.getElementById('remoteAudio').srcObject = stream;
+            });
+        } catch(e) { alert("Ошибка доступа к камере/микрофону"); }
+    }
+
+    async function answerCall() {
+        document.getElementById('ringtone').pause();
+        localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+        document.getElementById('localVid').srcObject = localStream;
+        currentCall.answer(localStream);
+        document.getElementById('btn-accept').style.display = 'none';
+        db.ref(`calls/${myName}`).update({active: false});
+    }
+
+    function listenSignals() {
+        db.ref(`calls/${myName}`).on('value', snap => {
+            const d = snap.val();
+            if(d && d.active) {
+                document.getElementById('ringtone').play().catch(()=>{});
+                document.getElementById('call-screen').style.display = 'flex';
+                document.getElementById('btn-accept').style.display = 'flex';
+            } else if (!d) { endCall(); }
+        });
+    }
+
+    function endCall() {
+        if(localStream) localStream.getTracks().forEach(t => t.stop());
+        db.ref(`calls/${myName}`).remove();
+        if(partner) db.ref(`calls/${partner}`).remove();
+        document.getElementById('call-screen').style.display = 'none';
+        document.getElementById('ringtone').pause();
+    }
+
+    // --- ЧАТ И УДАЛЕНИЕ ---
     function selectChat(name) {
         partner = name;
         document.getElementById('chat-title').innerText = name;
@@ -150,11 +226,15 @@
                 div.className = `msg ${m.from === myName ? 'mine' : 'others'} ${m.deleted ? 'deleted' : ''}`;
                 
                 if (m.deleted) {
-                    div.innerText = m.from === myName ? "🚫 Вы удалили это сообщение" : "🚫 Сообщение удалено";
+                    div.innerText = "🚫 Сообщение удалено";
+                } else if (m.audio) {
+                    div.innerHTML = `<audio controls src="${m.audio}" style="width:200px; height:35px;"></audio>`;
                 } else {
                     div.innerText = m.text;
-                    div.onclick = (e) => showDelMenu(e, child.key, m.from === myName);
                 }
+                
+                div.oncontextmenu = (e) => { e.preventDefault(); showDelMenu(e, child.key, m.from === myName); };
+                div.onclick = (e) => showDelMenu(e, child.key, m.from === myName);
                 box.appendChild(div);
             });
             box.scrollTop = box.scrollHeight;
@@ -162,121 +242,66 @@
     }
 
     function showDelMenu(e, msgKey, isMine) {
-        const oldMenu = document.querySelector('.del-menu');
-        if(oldMenu) oldMenu.remove();
-
+        const exist = document.querySelector('.del-menu'); if(exist) exist.remove();
         const menu = document.createElement('div');
         menu.className = 'del-menu';
-        menu.style.left = e.pageX + 'px';
-        menu.style.top = e.pageY + 'px';
-
+        menu.style.left = e.clientX + 'px'; menu.style.top = e.clientY + 'px';
+        
         let html = `<button onclick="deleteMsg('${msgKey}', 'me')">Удалить у меня</button>`;
-        if(isMine) {
-            html += `<button onclick="deleteMsg('${msgKey}', 'all')">Удалить у всех</button>`;
-        }
+        if(isMine) html += `<button onclick="deleteMsg('${msgKey}', 'all')">Удалить для всех</button>`;
         
         menu.innerHTML = html;
         document.body.appendChild(menu);
-        setTimeout(() => window.addEventListener('click', () => menu.remove(), {once:true}), 10);
+        setTimeout(() => window.onclick = () => menu.remove(), 100);
     }
 
     function deleteMsg(key, mode) {
-        const chatID = [myName, partner].sort().join("_");
-        if(mode === 'all') {
-            db.ref(`chats/${chatID}/${key}`).update({ deleted: true, text: "" });
+        const id = [myName, partner].sort().join("_");
+        if(mode === 'all') db.ref(`chats/${id}/${key}`).update({deleted: true, text: "", audio: null});
+        else db.ref(`chats/${id}/${key}`).remove();
+    }
+
+    // --- ГОЛОСОВЫЕ ---
+    async function toggleVoice() {
+        const btn = document.getElementById('voice-btn');
+        if (!mediaRec) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRec = new MediaRecorder(stream);
+                audioChunks = [];
+                mediaRec.ondataavailable = e => audioChunks.push(e.data);
+                mediaRec.onstop = () => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(new Blob(audioChunks, { type: 'audio/webm' }));
+                    reader.onloadend = () => {
+                        const id = [myName, partner].sort().join("_");
+                        db.ref(`chats/${id}`).push({from: myName, audio: reader.result, deleted: false});
+                    };
+                    stream.getTracks().forEach(t => t.stop()); mediaRec = null;
+                };
+                mediaRec.start(); btn.innerText = '🛑'; btn.style.color = 'red';
+            } catch (e) { alert("Микрофон не доступен"); }
         } else {
-            // Удаление "у меня" просто скрывает его локально (в этой версии удаляет из БД для упрощения)
-            db.ref(`chats/${chatID}/${key}`).remove();
+            mediaRec.stop(); btn.innerText = '🎤'; btn.style.color = 'white';
         }
     }
 
     function sendMsg(e) {
-        e.preventDefault();
-        const i = document.getElementById('m-inp');
+        e.preventDefault(); const i = document.getElementById('m-inp');
         if(!i.value) return;
-        const chatID = [myName, partner].sort().join("_");
-        db.ref(`chats/${chatID}`).push({from: myName, text: i.value, deleted: false});
+        const id = [myName, partner].sort().join("_");
+        db.ref(`chats/${id}`).push({from: myName, text: i.value, deleted: false});
         i.value = '';
     }
 
-    // --- ЗВОНКИ (УЛУЧШЕННЫЙ ЗВУК) ---
-    function initPeer() {
-        peer = new Peer(myName, { config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]} });
-        peer.on('call', call => {
-            currentCall = call;
-            call.on('stream', stream => {
-                document.getElementById('remoteVid').srcObject = stream;
-                document.getElementById('remoteAudio').srcObject = stream;
-            });
-        });
-    }
-
-    function listenSignals() {
-        db.ref(`calls/${myName}`).on('value', snap => {
-            const d = snap.val();
-            if(d && d.active) {
-                document.getElementById('ringtone').play().catch(()=>{});
-                document.getElementById('call-screen').style.display = 'flex';
-                if ("Notification" in window && Notification.permission === "granted") {
-                    new Notification("Loomi: Входящий вызов от " + d.from);
-                }
-            } else if (!d) { endCall(); }
-        });
-        if (Notification.permission === "default") Notification.requestPermission();
-    }
-
-    async function makeCall(video) {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        if (ctx.state === 'suspended') await ctx.resume();
-
-        localStream = await navigator.mediaDevices.getUserMedia({video, audio: true});
-        db.ref(`calls/${partner}`).set({from: myName, active: true, video});
-        document.getElementById('call-screen').style.display = 'flex';
-        document.getElementById('btn-accept').style.display = 'none';
-
-        const call = peer.call(partner, localStream);
-        currentCall = call;
-        call.on('stream', stream => {
-            document.getElementById('remoteVid').srcObject = stream;
-            document.getElementById('remoteAudio').srcObject = stream;
-        });
-    }
-
-    async function answerCall() {
-        document.getElementById('ringtone').pause();
-        localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
-        currentCall.answer(localStream);
-        document.getElementById('btn-accept').style.display = 'none';
-        db.ref(`calls/${myName}`).update({active: false});
-    }
-
-    function endCall() {
-        if(localStream) localStream.getTracks().forEach(t => t.stop());
-        db.ref(`calls/${myName}`).remove();
-        if(partner) db.ref(`calls/${partner}`).remove();
-        document.getElementById('call-screen').style.display = 'none';
-        document.getElementById('ringtone').pause();
-    }
-
-    function backToList() {
-        document.getElementById('sidebar').classList.remove('hidden');
-        document.getElementById('mobile-back').style.display = 'none';
-    }
-
-    function addFriend() {
-        const f = prompt("Имя контакта:");
-        if(f) db.ref(`users/${myName}/friends/${f.toLowerCase()}`).set(true);
-    }
-
+    function backToList() { document.getElementById('sidebar').classList.remove('hidden'); document.getElementById('mobile-back').style.display = 'none'; }
+    function addFriend() { const f = prompt("Имя контакта:"); if(f) db.ref(`users/${myName}/friends/${f.toLowerCase()}`).set(true); }
     function loadContacts() {
         db.ref(`users/${myName}/friends`).on('value', snap => {
-            const box = document.getElementById('contactsBox'); box.innerHTML = '';
+            const b = document.getElementById('contactsBox'); b.innerHTML = '';
             Object.keys(snap.val() || {}).forEach(name => {
-                const d = document.createElement('div');
-                d.style.padding = '15px'; d.style.borderBottom = '1px solid #222';
-                d.style.cursor = 'pointer'; d.innerText = "👤 " + name;
-                d.onclick = () => selectChat(name);
-                box.appendChild(d);
+                const d = document.createElement('div'); d.className = 'contact';
+                d.innerHTML = `👤 ${name}`; d.onclick = () => selectChat(name); b.appendChild(d);
             });
         });
     }

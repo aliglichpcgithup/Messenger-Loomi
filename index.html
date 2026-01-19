@@ -67,13 +67,14 @@
             box-shadow: 0 20px 40px -10px var(--green-glow);
         }
 
-        /* Sidebar */
+        /* Sidebar Responsive */
         .sidebar { 
             width: var(--sidebar-width); 
             background: rgba(2, 6, 23, 0.6); 
             border-right: 1px solid var(--glass-border); 
             display: flex; flex-direction: column; 
             backdrop-filter: blur(40px); z-index: 10; 
+            transition: transform 0.3s ease;
         }
         .sidebar-header { padding: 40px 25px 25px 25px; }
         .profile-row { display: flex; align-items: center; gap: 15px; background: var(--glass); padding: 15px; border-radius: 25px; border: 1px solid var(--glass-border); }
@@ -100,18 +101,19 @@
         .contact-item:hover { background: var(--glass); }
         .contact-item.active { background: rgba(0, 255, 163, 0.12); border: 1px solid rgba(0, 255, 163, 0.2); }
 
-        /* Chat Area */
+        /* Chat Area Responsive */
         .chat-area { flex: 1; display: flex; flex-direction: column; position: relative; z-index: 1; }
         .chat-header { 
-            padding: 25px 40px; display: flex; align-items: center; gap: 20px; 
+            padding: 20px 25px; display: flex; align-items: center; gap: 15px; 
             border-bottom: 1px solid var(--glass-border); background: rgba(2, 6, 23, 0.3); 
             backdrop-filter: blur(25px);
         }
 
-        #messages { flex: 1; padding: 40px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
+        #messages { flex: 1; padding: 25px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
         .msg { 
-            padding: 14px 20px; border-radius: 22px; max-width: 65%; 
+            padding: 14px 20px; border-radius: 22px; max-width: 85%; 
             font-size: 15px; line-height: 1.6; position: relative;
+            word-wrap: break-word;
         }
         .msg.mine { 
             align-self: flex-end; background: var(--my-msg-grad); color: #020617; 
@@ -129,30 +131,57 @@
         /* Media Elements */
         .msg-img { max-width: 100%; border-radius: 12px; margin: 10px 0; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; }
         .msg-file { display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 12px; margin: 10px 0; color: white; text-decoration: none; font-size: 13px; }
-        audio { height: 35px; margin-top: 10px; border-radius: 10px; filter: invert(1); }
+        audio { height: 35px; margin-top: 10px; border-radius: 10px; filter: invert(1); width: 100%; min-width: 150px; }
 
         /* Footer */
         .chat-footer { 
-            padding: 30px 40px; display: flex; gap: 15px; align-items: center; 
+            padding: 15px 20px; display: flex; gap: 10px; align-items: center; 
             background: rgba(2, 6, 23, 0.4); backdrop-filter: blur(20px);
+            padding-bottom: calc(15px + env(safe-area-inset-bottom));
         }
         .input-box {
             flex: 1; background: rgba(0, 0, 0, 0.3); border-radius: 25px; 
-            padding: 12px 25px; border: 1px solid var(--glass-border);
+            padding: 10px 15px; border: 1px solid var(--glass-border);
             display: flex; align-items: center; transition: 0.3s;
         }
-        .btn-footer { background: none; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; transition: 0.2s; }
+        .btn-footer { background: none; border: none; color: var(--text-secondary); font-size: 20px; cursor: pointer; transition: 0.2s; padding: 5px; }
         .btn-footer:hover { color: var(--green-neon); }
         .btn-footer.recording { color: var(--danger); animation: pulse 1s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
         .btn-send { 
-            width: 50px; height: 50px; border-radius: 18px; border: none; 
-            background: var(--my-msg-grad); color: #020617; font-size: 20px; cursor: pointer;
+            width: 45px; height: 45px; border-radius: 15px; border: none; 
+            background: var(--my-msg-grad); color: #020617; font-size: 18px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
         }
 
         #custom-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 20000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
-        .modal-card { background: #0f172a; padding: 45px; border-radius: 40px; border: 1px solid var(--glass-border); width: 90%; max-width: 420px; }
+        .modal-card { background: #0f172a; padding: 30px; border-radius: 30px; border: 1px solid var(--glass-border); width: 90%; max-width: 400px; }
+
+        /* Mobile specific logic */
+        .back-btn { display: none; background: none; border: none; font-size: 24px; color: var(--green-neon); cursor: pointer; margin-right: 10px; }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                left: 0; top: 0; bottom: 0;
+                width: 100%;
+                z-index: 100;
+            }
+            .sidebar.hidden { transform: translateX(-100%); }
+            .chat-area { width: 100%; }
+            .back-btn { display: block; }
+            .msg { max-width: 90%; }
+            .sidebar-header { padding-top: calc(20px + env(safe-area-inset-top)); }
+            .auth-card { padding: 40px 20px; }
+        }
+
+        @media (min-width: 769px) {
+            .msg { max-width: 65%; }
+            .chat-header { padding: 25px 40px; }
+            #messages { padding: 40px; }
+            .chat-footer { padding: 30px 40px; }
+        }
     </style>
 </head>
 <body>
@@ -175,13 +204,13 @@
     <div class="modal-card" id="modal-body"></div>
 </div>
 
-<div class="sidebar">
+<div class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="profile-row">
             <div class="user-av" id="my-av">?</div>
             <div style="flex:1">
-                <b id="my-name-display" style="font-size: 20px;">...</b>
-                <div style="font-size: 11px; color: var(--green-neon); font-weight: 800;">PREMIUM CLOUD</div>
+                <b id="my-name-display" style="font-size: 18px;">...</b>
+                <div style="font-size: 10px; color: var(--green-neon); font-weight: 800;">PREMIUM CLOUD</div>
             </div>
             <button onclick="logout()" style="background:none; border:none; cursor:pointer; font-size: 20px;">🔒</button>
         </div>
@@ -200,17 +229,19 @@
 
 <div class="chat-area">
     <div id="welcome" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align: center;">
-        <div style="font-size: 80px; filter: drop-shadow(0 0 20px var(--green-glow));">💠</div>
+        <div style="font-size: 80px; filter: drop-shadow(0 0 20px var(--green-glow)); cursor: pointer;" onclick="toggleSidebarOnMobile()">💠</div>
         <h2 style="letter-spacing: 8px; margin-top: 20px; color: var(--green-neon);">LOOMI 2026</h2>
         <p style="color: var(--text-secondary); margin-top: 10px; font-weight: 600;">FILES & VOICE ENABLED</p>
+        <button class="sidebar-btn" style="max-width: 200px; margin-top: 20px;" onclick="toggleSidebarOnMobile()">ОТКРЫТЬ ЧАТЫ</button>
     </div>
 
     <div id="chat-ui" style="display:none; flex:1; flex-direction:column;">
         <div class="chat-header">
-            <div class="user-av" id="partner-av">?</div>
+            <button class="back-btn" onclick="toggleSidebarOnMobile()">‹</button>
+            <div class="user-av" id="partner-av" style="width: 40px; height: 40px; font-size: 18px;">?</div>
             <div style="flex:1">
-                <b id="p-name" style="font-size: 20px;">...</b>
-                <div id="p-status" style="font-size: 11px; color: var(--green-neon);">ONLINE SECURE</div>
+                <b id="p-name" style="font-size: 18px;">...</b>
+                <div id="p-status" style="font-size: 10px; color: var(--green-neon);">ONLINE SECURE</div>
             </div>
         </div>
         
@@ -252,6 +283,12 @@
     let audioChunks = [];
     let isRecording = false;
 
+    // Mobile Toggle
+    function toggleSidebarOnMobile() {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('hidden');
+    }
+
     async function login() {
         const name = document.getElementById('a-name').value.trim().toLowerCase();
         const pass = document.getElementById('a-pass').value.trim();
@@ -281,7 +318,10 @@
                 const div = document.createElement('div');
                 div.className = `contact-item ${activeChatId === id ? 'active' : ''}`;
                 div.innerHTML = `<div class="user-av" style="background:var(--glass); font-size:18px">${name[0]}</div><div style="flex:1"><b>${name.toUpperCase()}</b></div>`;
-                div.onclick = () => openChat(id, name, 'direct');
+                div.onclick = () => {
+                    openChat(id, name, 'direct');
+                    if(window.innerWidth <= 768) toggleSidebarOnMobile();
+                };
                 list.appendChild(div);
             });
         });
@@ -295,7 +335,10 @@
                 const div = document.createElement('div');
                 div.className = `contact-item ${activeChatId === gId ? 'active' : ''}`;
                 div.innerHTML = `<div class="user-av" style="background:rgba(0,255,163,0.1); color:var(--green-neon); font-size:18px">👥</div><div style="flex:1"><b>${name.toUpperCase()}</b></div>`;
-                div.onclick = () => openChat(gId, name, 'group');
+                div.onclick = () => {
+                    openChat(gId, name, 'group');
+                    if(window.innerWidth <= 768) toggleSidebarOnMobile();
+                };
                 list.appendChild(div);
             });
         });
@@ -320,7 +363,7 @@
                 
                 let content = `<div>${m.text || ''}</div>`;
                 if(m.type === 'image') content += `<img src="${m.fileData}" class="msg-img" onclick="window.open(this.src)">`;
-                else if(m.type === 'file') content += `<a href="${m.fileData}" download="${m.fileName}" class="msg-file">📄 ${m.fileName}</a>`;
+                else if(m.type === 'file') content += `<a href="${m.fileData}" download="${m.fileName}" class="msg-file">📄 ${m.fileName.substring(0, 20)}...</a>`;
                 else if(m.type === 'voice') content += `<audio controls src="${m.fileData}"></audio>`;
 
                 let author = (type === 'group' && m.from !== currentUser) ? `<div class="msg-author">${m.from}</div>` : '';
@@ -349,7 +392,7 @@
     function handleFileSelect(input) {
         const file = input.files[0];
         if(!file) return;
-        if(file.size > 2 * 1024 * 1024) { // 2MB limit for Realtime Database
+        if(file.size > 2 * 1024 * 1024) { 
             alert("Файл слишком большой. Лимит 2МБ.");
             return;
         }
@@ -466,7 +509,12 @@
             login();
         }
     }
-    window.onload = loginCheck;
+    window.onload = () => {
+        loginCheck();
+        if(window.innerWidth <= 768) {
+            document.getElementById('sidebar').classList.add('hidden');
+        }
+    };
 </script>
 </body>
 </html>
